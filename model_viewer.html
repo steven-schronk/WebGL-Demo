@@ -1,0 +1,1095 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title>SRS Demoscene1</title>
+
+<script type="text/javascript" src="gl-matrix.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+    varying vec3 vNormal;
+    
+    uniform vec3 uLightDirection;
+
+    void main(void) {
+        vec3 normal = normalize(vNormal);
+        float brightness = dot(normal, uLightDirection);
+        gl_FragColor = vColor;
+        gl_FragColor.rgb *= brightness;
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec4 aVertexColor;
+
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uModelViewMatrix;
+
+    varying vec4 vColor;
+    varying vec3 vNormal;
+
+    void main(void) {
+        gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+        vNormal = mat3(uModelViewMatrix) * aVertexNormal;
+    }
+</script>
+
+<script type="text/javascript">
+    var x = 0, y = 1, z = 2;            /* DO NOT MODIFY THESE VALUES */
+    var r = 0, g = 1, b = 2, a = 3;     /* DO NOT MODIFY THESE VALUES */
+    var x_rotation = 0, y_rotation = 0, z_rotation = 0;
+    var vertexBuffer = [];
+    var lastMouseX = null;
+    var lastMouseY = null;
+    var console;
+    var gl;
+    var shaderProgram;
+    var mvMatrix = mat4.create();        // model view matrix
+    var pMatrix = mat4.create();        // projection matrix
+    var lightDirection = vec3.create();         // direction of light
+    var rotationMatrix = mat4.create();
+    mat4.identity(rotationMatrix);
+    var mvMatrixStack = [];
+    var coordinateBuffer;
+    var triangleVertexPositionBuffer;
+    var mouseDown = false;
+    var error_console;
+    var newRotationMatrix = mat4.create();
+    
+    /* TODO: Make a hierarchy of primitive objects.
+    // Model -> Things
+    //          Lights
+    
+    function Thing(){}
+   
+    Thing.prototype = {
+        // Thing -> Primitives
+        // matrix
+    };
+    
+    Primitive.prototype = {
+        // vertex buffer start
+        // vertex buffer stop
+        // buffer draw type 
+        //      (i.e. triangles, triangle fans, triangle strips, points, lines)
+        // matrix
+        // draw
+    };
+
+    function Primitive() {}
+    Primitive.draw = new function draw(){
+        alert("Drawing primitive");
+    };
+    
+    var lineStrip = new Primitive();
+    lineStrip.draw;
+    */
+
+    function generateModels(){
+        var point_a = vec3.create();
+        point_a[x] = 0.0;
+        point_a[y] = 0.0;
+        point_a[z] = 0.0;
+
+        var color_a = vec4.create();
+        color_a[r] = 1.0;
+        color_a[g] = 0.0;
+        color_a[b] = 0.0;
+        color_a[a] = 1.0;
+
+        var point_b = vec3.create();
+        point_b[x] = 2.0;
+        point_b[y] = 0.0;
+        point_b[z] = 0.0;
+
+        var color_b = vec4.create();
+        color_b[r] = 0.0;
+        color_b[g] = 1.0;
+        color_b[b] = 0.0;
+        color_b[a] = 1.0;
+
+        var point_c = vec3.create();
+        point_c[x] = 0.0;
+        point_c[y] = 2.0;
+        point_c[z] = 0.0;
+
+        var color_c = vec4.create();
+        color_c[r] = 0.0;
+        color_c[g] = 0.0;
+        color_c[b] = 1.0;
+        color_c[a] = 1.0;
+
+        var point_d = vec3.create();
+        point_d[x] = -.25;
+        point_d[y] = -.50;
+        point_d[z] = 0.75;
+
+        var color_d = vec4.create();
+        color_d[r] = 1.0;
+        color_d[g] = 1.0;
+        color_d[b] = 1.0;
+        color_d[a] = 1.0;
+
+        var origin = vec3.create();
+        origin[x] = 0.25;
+        origin[y] = 1;
+        origin[z] = 1;
+        
+        var origin2 = vec3.create();
+        origin2[x] = 1;
+        origin2[y] = 2;
+        origin2[z] = 3;
+        
+        var origin3 = vec3.create();
+        origin3[x] = .5;
+        origin3[y] = .5;
+        origin3[z] = .5;
+        
+        var originCenter = vec3.create();
+        originCenter[x] = 0;
+        originCenter[y] = 0;
+        originCenter[z] = 0;
+         
+        //loadTriangle(point_a, color_a, point_b, color_b, point_c, color_c);
+        //genCubeOriginOffset(origin, 1, 1.5, 2, color_b);
+        //genCircleOneColor(origin, radius, segments, color)
+        //genCircleOneColor(origin, 1, 9, color_d);
+        //genConeOneColor(origin, radius, segments, height, color)
+        //genConeOneColor(origin, 1, 6, 5.25, color_d, true);
+        //genDualConeOneColor(origin2, 1, 6, 5.25, 2.25, color_d);
+        //genCircleOneColor(origin, 1.35, 100, color_c);
+        //genWedge(origin, height, width, depth, color);
+        //genWedge(originCenter, 3, 2, 1, color_d);
+        
+        /*
+        var bottle = [];
+        bottle.push(vec2.create());
+        bottle.push(vec2.create());
+        bottle.push(vec2.create());
+        bottle.push(vec2.create());
+        bottle.push(vec2.create());
+        
+        bottle[0][x] = 0;
+        bottle[0][y] = 0;
+        
+        bottle[1][x] = 2;
+        bottle[1][y] = 0;
+        
+        bottle[2][x] = 2;
+        bottle[2][y] = 2;
+        
+        bottle[3][x] = 3;
+        bottle[3][y] = 3;
+        
+        bottle[4][x] = 3;
+        bottle[4][y] = 4.5;
+        
+        genRevolutionOneColor(bottle, 14, color_d);
+        */
+        
+        /*
+        var umbrella = [];
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        umbrella.push(vec2.create());
+        
+        umbrella[0][x] = 0;
+        umbrella[0][y] = 0;        
+        
+        umbrella[1][x] = .05;
+        umbrella[1][y] = 0;
+        
+        umbrella[2][x] = .05;
+        umbrella[2][y] = .175;
+        
+        umbrella[3][x] = .03;
+        umbrella[3][y] = .2;
+        
+        umbrella[4][x] = .04;
+        umbrella[4][y] = 2;
+        
+        umbrella[5][x] = .3;
+        umbrella[5][y] = 1.95;
+        
+        umbrella[6][x] = .6;
+        umbrella[6][y] = 1.81;
+        
+        umbrella[7][x] = .8;
+        umbrella[7][y] = 1.71;
+        
+        umbrella[8][x] = 1.1;
+        umbrella[8][y] = 1.5;
+        
+        genRevolutionOneColor(umbrella, 6, color_d);
+        */
+    }
+
+    /**
+     * Adds triangle to buffer with three points and colors.
+     *
+     * TODO: RENAME TO INDICATE THIS LOADS DATA INTO THE BUFFER - NOT GENERATES VERTICIES
+     *
+     * @param {vec3} first point
+     * @param {vec4} first point color
+     * @param {vec3} second point
+     * @param {vec4} second point color
+     * @param {vec3} third point
+     * @param {vec4} third point color
+     * @returns {int} vertex count
+     */
+    function loadTriangle(pt_1, pt_1_color, pt_2, pt_2_color, pt_3, pt_3_color){
+        if(arguments.length != 6) { throw new Error("Incorrect Number of Arguments"); }
+        var vertexCounter = vertexBuffer.length;
+        var argumentCounter = 1;
+        // calculate the normal for this triangle
+        var d1 = vec3.create();
+        d1[x] = pt_2[x] - pt_1[x];
+        d1[y] = pt_2[y] - pt_1[y];
+        d1[z] = pt_2[z] - pt_1[z];
+        
+        var d2 = vec3.create();
+        d2[x] = pt_3[x] - pt_2[x];
+        d2[y] = pt_3[y] - pt_2[y];
+        d2[z] = pt_3[z] - pt_2[z];
+        
+        var cross = vec3.create();
+        cross[x] = d1[y] * d2[z] - d1[z] * d2[y];
+        cross[y] = d1[z] * d2[x] - d1[x] * d2[z];
+        cross[z] = d1[x] * d2[y] - d1[y] * d2[x];
+        
+        var dist = Math.sqrt(Math.pow(cross[x],2) + Math.pow(cross[y],2) + Math.pow(cross[z],2));
+        
+        var norm = vec3.create();
+        norm[x] = cross[x] / dist;
+        norm[y] = cross[y] / dist;
+        norm[z] = cross[z] / dist;
+        //vec3.normalize(cross, cross);
+        
+        for(var arg = 0; arg < arguments.length; ++arg){
+            if(argumentCounter % 2){ // odd argument (points)
+                // first the points
+                var arr = arguments[arg];
+                for(var i = 0; i < arr.length; ++i){
+                    //var element = arr[i];
+                    vertexBuffer[vertexCounter] = arr[i];
+                    vertexCounter++;
+                }
+                vertexBuffer[vertexCounter] = norm[x];
+                vertexCounter++;
+                vertexBuffer[vertexCounter] = norm[y];
+                vertexCounter++;
+                vertexBuffer[vertexCounter] = norm[z];
+                vertexCounter++;
+            } else {    // even argument (colors)
+                // these are colors
+                var arr = arguments[arg];
+                for(var i = 0; i < arr.length; ++i){
+                    //var element = arr[i];
+                    vertexBuffer[vertexCounter] = arr[i];
+                    vertexCounter++;
+                }
+            }
+            argumentCounter++;
+        }
+        return vertexCounter;
+    }
+
+    /**
+     * Adds rectangle to buffer with three points and colors.
+     *
+     * @param {vec3} point 1
+     * @param {vec3} point 2
+     * @param {vec3} point 3
+     * @param {vec4} first point color
+     * @param {vec4} second point color
+     * @param {vec4} third point color
+     * @param {vec4} fourth point color    
+     * @returns {int} vertex count
+     */
+    function loadRectangle(pt1, color_1, pt2, color_2, pt3, color_3, color_4){
+        loadTriangle(pt1, color_1, pt2, color_2, pt3, color_3);
+        var pt = vec3.create();
+        pt[x] = pt1[x];
+        pt[y] = pt3[y];
+        pt[z] = pt1[x];
+
+        var vec1 = vec3.create();
+        vec1[x] = pt1[x] - pt2[x];
+        vec1[y] = pt1[y] - pt2[y];
+        vec1[z] = pt1[z] - pt2[z];
+
+        var pt4 = vec3.create();
+
+        pt4[x] = pt3[x] - vec1[x];
+        pt4[y] = pt3[y] - vec1[y];
+        pt4[z] = pt3[z] - vec1[z];
+
+        loadTriangle(pt2, color_2, pt4, color_4, pt3, color_3);
+        return vertexBuffer.length;
+    }
+
+    function loadRectangleOneColor(pt1, pt2, pt3, color){
+         loadRectangle(pt1, color, pt2, color, pt3, color, color);
+    }
+
+    //loadRectangle(point_a, color_a, point_b, color_b, point_c, color_c, color_d);
+
+    //loadRectangleOneColor(point_a, point_b, point_c, color_a);
+
+    /*
+    function genCubeOffset(origin, width, depth, height, color_1, color_2...){
+    }
+    
+
+    */
+
+    function genCubeOffsetOneColor(origin, x_offset, y_offset, z_offset, color){
+        // NOTE: The offsets ADD to the origin coordinates
+        var p1 = vec3.create();     p1 = vec3.clone(origin);
+        var p2 = vec3.create();     p2 = vec3.clone(origin);
+        var p3 = vec3.create();     p3 = vec3.clone(origin);
+        p1[x] += x_offset;
+        p2[x] += x_offset;  p2[y] += y_offset;
+        p3[x] += x_offset;  p3[y] += y_offset;  p3[z] += z_offset;
+        // bottom
+        loadRectangle(origin, color, p1, color, p2, color, color);
+        
+        // top
+
+        // front
+
+        // back
+
+        // left
+
+        // right
+    }
+
+    //genCubeOffsetOneColor(point_a, 0.35, 0.5, 0.7, color_d);
+
+    /*
+     * Generate cube with corner origin, width and height.
+     */
+
+     function genCubeOriginOffset(origin, width, height, depth, color){
+        var transformMat = new mat4.create();
+        var pt1 = vec3.create();     pt1 = vec3.clone(origin);
+        var pt2 = vec3.create();     pt2 = vec3.clone(origin);
+        var pt3 = vec3.create();     pt3 = vec3.clone(origin);
+        //appendLog(origin);
+        pt1 = origin;
+        pt2[x] = pt2[x]+width;
+        pt3[z] = pt3[z]+depth;
+
+        // generate base points
+        loadRectangleOneColor(pt1, pt2, pt3, color);
+
+        // generate top
+        pt1 = origin;
+        pt1[y] = pt1[y]+height;
+        pt2[y] = pt2[y]+height;
+        pt3[y] = pt3[y]+height;
+        loadRectangleOneColor(pt1, pt3, pt2, color);
+
+        // side 1
+        pt1 = vec3.clone(origin);
+        pt2 = vec3.clone(origin);
+        pt3 = vec3.clone(origin);
+        
+        pt2[z] = pt2[z]+depth;
+        pt3[y] = pt3[y]-height;
+        loadRectangleOneColor(pt1, pt3, pt2, color);
+        
+        // side 1 opposite
+        mat4.translate(transformMat, transformMat, [width, 0.0, 0.0]);
+        vec3.transformMat4(pt1, pt1, transformMat);
+        vec3.transformMat4(pt2, pt2, transformMat);
+        vec3.transformMat4(pt3, pt3, transformMat);
+        loadRectangleOneColor(pt1, pt2, pt3, color);
+
+        //side 2
+        pt1 = vec3.clone(origin);
+        pt2 = vec3.clone(origin);
+        pt3 = vec3.clone(origin);
+        
+        pt2[x] = pt2[x]+width;
+        pt3[y] = pt3[y]-height;
+        loadRectangleOneColor(pt1, pt2, pt3, color);
+        
+        pt2[x] = pt2[x]-width-width;
+        mat4.translate(transformMat, transformMat, [0.0, 0.0, depth]);
+        vec3.transformMat4(pt1, pt1, transformMat);
+        vec3.transformMat4(pt2, pt2, transformMat);
+        vec3.transformMat4(pt3, pt3, transformMat);
+        
+        loadRectangleOneColor(pt1, pt2, pt3, color);
+        appendLog("Generated Cube");
+    }
+
+    /**
+     * Generate cube with one color per point.
+     */
+    function genCube(pt1, color_1, pt2, color_2, pt3, color_3, pt4, color_4, color_5, color_6, color_7, color_8){
+        var height = pt1[z] - pt2[z];
+        var width  = pt2[x] - pt1[x];
+        var depth  = pt3[y] - pt4[y];
+
+        // top
+        loadRectangle(pt1, color_1, pt2, color_2, pt3, color_3, pt4, color_4);
+
+        // bottom
+
+        loadRectangle(pt1, color_1, pt2, color_2, pt3, color_3, pt4, color_4);
+        // side 1
+
+        // side 2
+
+        // side 3
+
+        // side 4
+
+    }
+
+    /**
+     * Generate cube with only one color.
+     */
+    function genCubeOneColor(pt1, pt2, pt3, pt4, color){
+        genCube(pt1, color, pt2, color, pt3, color, pt4, color, color, color, color, color);
+    }
+
+    /*
+     * @param {vec3} origin of circle
+     * @param {float} radius of circle
+     * @param {int} number of segments in circle
+     * @param {vec3} color rgb floats
+     * @returns {void}
+     */
+    function genCircleOneColor(origin, radius, segments, color){
+        var step = 2*Math.PI/segments;
+        var current = vec3.clone(origin);
+        var previous = vec3.clone(origin);
+
+        for(var theta=0; theta < segments; theta += step){
+            current[x] = origin[x] + radius*Math.cos(theta);
+            current[y] = origin[y] - radius*Math.sin(theta);
+            loadTriangle(current, color, previous, color, origin, color);
+            previous = vec3.copy(previous, current);
+        }
+    }
+    
+    /*
+     * @param {vec3} coordinate
+     */
+    function currentPointAtCenterRev2D(point) {    // is this point along the revolution axis?
+        if(point[x] == 0) { return true; }
+        return false;
+    }
+    
+    /*
+     * @param {vec2} list of x,y coords
+     * @param {int} number of segments in circle
+     * @param {vec3} color rgb floats
+     * @returns {void}
+     */    
+    function genRevolutionOneColor(points, segments, color){
+        if(segments < 2){ return; }  // cannot be less than 3
+        var step_angle = 2 * Math.PI / segments // segment angle in radians;        
+        var rings = [];    // stores all final points in array of arrays
+        
+        for(var i = 0; i < points.length; i++) { // one loop for each ring
+            // if current point is at origin, no need to generate ring
+            if(currentPointAtCenterRev2D(points[i])) {
+                // use this point multiple times
+                var single_ring = []; // used for this ring only
+                var ring_point = vec3.create();
+                ring_point[y] = points[i][y];
+                single_ring.push(ring_point);
+                rings.push(single_ring); // points default to 0
+            } else {
+                // create a circle for each of the points
+                var single_ring = []; // used for this ring only
+                
+                // draw ring of verticies around Y axis
+                // one vertex per segment
+                // numbers change on X and Z axis only
+                for(var theta = 0; theta < segments + 1; theta += step_angle){
+                    var ring_point = vec3.create();
+                    // points[i][x] is the radius of the circle
+                    // has to be moved over to origin point axis of revolution
+                    ring_point[x] = (points[i][x] + points[i][x] * Math.cos(theta))-points[i][x];
+                    ring_point[z] = (points[i][y] - points[i][x] * Math.sin(theta))-points[i][y];
+                    ring_point[y] = points[i][y];
+                    single_ring.push(ring_point);
+                }
+                rings.push(single_ring);
+            }
+        }
+        for(var i = 0; i < rings.length-1; i++) { // loop through all rings
+            if(rings[i].length == 1) { // this point is center
+                if(rings[i+1].length == 1) { // next point is center
+                    continue; // do nothing
+                } else {    // next point fan
+                    for(var j = 0; j < rings[i+1].length; j++) {
+                        //loadTriangle(pt_1, color, pt_2, color, pt_3, color);
+                        if(j+1 >= rings[i+1].length) {
+                            loadTriangle(rings[i+1][j], color, rings[i][0], color, rings[i+1][0], color);
+                        } else {
+                            loadTriangle(rings[i+1][j], color, rings[i][0], color, rings[i+1][j+1], color);
+                        }
+                    }
+                    // point to fan
+                }
+            // two center points should not draw anything between them
+            
+            // from center to fan
+            
+            // from fan to center
+            
+            } else {    // point is fan
+                if(rings[i+1].length == 1) { // next point center
+                    // from fan to point
+                    for(var j = 0; j < rings[i].length; j++) {
+                        //loadTriangle(pt_1, color, pt_2, color, pt_3, color);
+                        if(j+1 >= rings[i].length) {
+                            loadTriangle(rings[i+1][0], color, rings[i][j], color, rings[i][0], color);
+                        } else {
+                            loadTriangle(rings[i+1][0], color, rings[i][j], color, rings[i][j+1], color);
+                        }
+                    }
+                } else {    // next point fan
+                    // from fan to fan
+                    for(var j = 0; j < rings[i].length-1; j++) {
+                        loadTriangle(rings[i+1][j], color, rings[i][j], color, rings[i][j+1], color);
+                        loadTriangle(rings[i][j+1], color, rings[i+1][j+1], color, rings[i+1][j], color);
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+     * @param {vec3} bottom center origin of cone
+     * @param {float} radius of circle
+     * @param {int} number of segments in circle
+     * @param {float} height of cone
+     * @param {vec3} color rgb floats
+     * @param {boolean} toggle drawing base of cone
+     * @returns {void}
+     */
+    function genConeOneColor(origin, radius, segments, height, color, base){
+        var topPoint = vec3.clone(origin);
+        topPoint[z] = origin[z] + height;
+        var basePoints = [];
+        var step = 2*Math.PI/segments;
+        var count = 0;
+        for(var theta=0; theta < 2*Math.PI; theta += step){
+            var point = vec3.create();
+            point[x] = origin[x] + radius*Math.cos(theta);
+            point[y] = origin[y] - radius*Math.sin(theta);
+            point[z] = origin[z];
+            basePoints[count] = point;
+            count++;
+        }
+        for(var i = 0; i < count-1; i++){
+            loadTriangle(topPoint, color, basePoints[i], color, basePoints[i+1], color);
+            if(base){
+                loadTriangle(origin, color, basePoints[i], color, basePoints[i+1], color);
+            }
+        }
+    }
+
+    /*
+     * @param {vec3} bottom center origin of cone
+     * @param {float} radius of circle
+     * @param {int} number of segments in circle
+     * @param {float} height of cone
+     * @param {float} depth of cone
+     * @param {vec3} color rgb floats
+     * @returns {void}
+     */
+    function genDualConeOneColor(origin, radius, segments, height, depth, color){
+        // TODO: center points are not working correctly.
+        var topPoint = vec3.clone(origin);
+        topPoint[z] = origin[z] + height;
+        var bottomPoint = vec3.clone(origin);
+        bottomPoint[z] = origin[z] - depth;
+        var basePoints = [];
+        var step = 2*Math.PI/segments;
+        var count = 0;
+        for(var theta=0; theta < 2*Math.PI; theta += step){
+            var point = vec3.create();
+            point[x] = origin[x] + radius*Math.cos(theta);
+            point[y] = origin[y] - radius*Math.sin(theta);
+            point[z] = origin[z];
+            basePoints[count] = point;
+            count++;
+        }
+        for(var i = 0; i < count-1; i++){
+            loadTriangle(topPoint, color, basePoints[i], color, basePoints[i+1], color);
+            loadTriangle(bottomPoint, color, basePoints[i], color, basePoints[i+1], color);
+        }
+    }
+    
+    /*
+     * @param {vec3} bottom corner of wedge (thick side)
+     * @param {float} height of cone
+     * @param {float} width of cone
+     * @param {float} depth of cone
+     * @param {vec3} color rgb floats
+     * @returns {undefined}
+     */
+    function genWedge(origin, height, width, depth, color){
+        var transformMat = new mat4.create();
+        var pt1 = vec3.create();     pt1 = vec3.clone(origin);
+        var pt2 = vec3.create();     pt2 = vec3.clone(origin);
+        var pt3 = vec3.create();     pt3 = vec3.clone(origin);
+        
+        pt3[x] = pt3[x] + depth;
+        pt2[y] = pt2[y] + height;
+        loadRectangleOneColor(pt1, pt2, pt3, color); //back
+        
+        pt2 = vec3.clone(origin);
+        pt2[z] = pt2[z] + width;
+        loadRectangleOneColor(pt1, pt3, pt2, color); // bottom
+        
+        pt1[y] = pt1[y] + height;
+        pt3[y] = pt3[y] + height;
+        
+        loadRectangleOneColor(pt1, pt2, pt3, color); // top
+        loadTriangle(origin, color, pt2, color, pt1, color); // front
+
+        mat4.translate(transformMat, transformMat, [depth, 0.0, 0.0]);
+        vec3.transformMat4(origin, origin, transformMat);
+        vec3.transformMat4(pt1, pt1, transformMat);
+        vec3.transformMat4(pt2, pt2, transformMat);
+        vec3.transformMat4(pt3, pt3, transformMat);
+        loadTriangle(origin, color, pt1, color, pt2, color);  // back
+    }
+
+    function onKeyPress(evt){
+        evt = (evt) ? evt : (window.event) ? event : null;
+        if (evt)
+        {
+            var charCode = (evt.charCode) ? evt.charCode :((evt.keyCode) ? evt.keyCode :((evt.which) ? evt.which : 0));
+            return charCode;
+        }
+    }
+
+    window.requestAnimFrame = (function() {
+      return window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.oRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function(callback, element) {
+            window.setTimeout(callback, 1000/60);
+         };
+    })();
+
+    function handleKeyDown(event) {
+        //alert(onKeyPress(event));
+        //console.innerHTML = +new Date + "&nbsp;X:"+x_rotation+"&nbsp;Y:"+y_rotation+"&nbsp;Z:"+z_rotation;
+        switch(onKeyPress(event)) {
+            case 97:
+                    x_rotation = x_rotation + 10;
+                    break;
+            case 99:
+                    x_rotation = x_rotation - 10;
+                    break;
+
+            case 103:
+                    y_rotation = y_rotation + 10;
+                    break;
+            case 83:
+                    y_rotation = y_rotation - 10;
+                    break;
+            case a:
+                    alert("Here");
+        }
+
+        mat4.rotate(newRotationMatrix, newRotationMatrix, degToRad(x_rotation / 10), [0, 1, 0]);
+        mat4.rotate(newRotationMatrix, newRotationMatrix, degToRad(y_rotation / 10), [1, 0, 0]);
+        mat4.multiply(mvMatrix, mvMatrix, newRotationMatrix);
+        //appendLog(mvMatrix);
+        //drawScene();
+    }
+
+    function handleMouseDown(event) {
+        mouseDown = true;
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+
+    function handleMouseUp(event) {
+        mouseDown = false;
+    }
+
+    function handleMouseMove(event) {
+        if (!mouseDown) {
+            return;
+        }
+        var newX = event.clientX;
+        var newY = event.clientY;
+
+        var deltaX = newX - lastMouseX;
+        mat4.identity(newRotationMatrix);
+        mat4.rotate(newRotationMatrix, newRotationMatrix, degToRad(deltaX), [0, 1, 0]);
+
+        var deltaY = newY - lastMouseY;
+        mat4.rotate(newRotationMatrix, newRotationMatrix, degToRad(deltaY), [1, 0, 0]);
+
+        mat4.multiply(rotationMatrix, newRotationMatrix, rotationMatrix);
+
+        lastMouseX = newX;
+        lastMouseY = newY;
+        drawScene();
+    }
+
+    function mvPushMatrix() {
+        var copy = mat4.create();
+        mat4.clone(mvMatrix, copy);
+        mvMatrixStack.push(copy);
+    }
+
+    function mvPopMatrix() {
+        if (mvMatrixStack.length == 0) {
+            throw "Invalid popMatrix!";
+        }
+        mvMatrix = mvMatrixStack.pop();
+    }
+
+    function tick() {
+        requestAnimFrame(tick);
+        drawScene();
+    }
+    
+    function degToRad(degrees) {
+        return degrees * Math.PI / 180;
+    }
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could Not Initialise WebGL.");
+        }
+    }
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+        
+        // shader attributes
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+        
+        shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
+        gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+        
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+        appendLog("Shader Attributes Initialized.");
+        
+        //shader uniforms
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+        shaderProgram.lightDirectionUniform = gl.getUniformLocation(shaderProgram, "uLightDirection");
+        appendLog("Shader Uniforms Initialized.");
+    }
+
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+
+    function initBuffers() {
+    /* COORDINATE BUFFER SETUP */
+    /*
+    coordinateBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, coordinateBuffer);
+    // contains coordinates and colors
+    // x y z r g b a
+        var coordinates = [
+            0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,        // origin
+            1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,        // x line in red
+
+            1.7, 0, -.2, 1.0, 0.0, 0.0, 1.0,        // x character
+            1.3, 0,  .2, 1.0, 0.0, 0.0, 1.0,            
+
+            1.7, 0,  .2, 1.0, 0.0, 0.0, 1.0,        // x character
+            1.3, 0, -.2, 1.0, 0.0, 0.0, 1.0,
+
+            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0,        // origin
+            0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0,        // y line in green
+
+            0.0, 1.7, -.2, 0.0, 1.0, 0.0, 1.0,        // y character
+            0.0, 1.4, 0.0, 0.0, 1.0, 0.0, 1.0,
+
+            0.0, 1.7, 0.2, 0.0, 1.0, 0.0, 1.0,
+            0.0, 1.4, 0.0, 0.0, 1.0, 0.0, 1.0,
+
+            0.0, 1.4, 0.0, 0.0, 1.0, 0.0, 1.0,
+            0.0, 1.3, 0.0, 0.0, 1.0, 0.0, 1.0,
+
+            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,        // origin
+            0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,        // z line in blue
+
+            -.2, 0.0, 1.7, 0.0, 0.0, 1.0, 1.0,        // z character
+            0.2, 0.0, 1.7, 0.0, 0.0, 1.0, 1.0,
+
+            -.2, 0.0, 1.7, 0.0, 0.0, 1.0, 1.0,
+            0.2, 0.0, 1.3, 0.0, 0.0, 1.0, 1.0,
+
+            0.2, 0.0, 1.3, 0.0, 0.0, 1.0, 1.0,
+            -.2, 0.0, 1.3, 0.0, 0.0, 1.0, 1.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(coordinates), gl.STATIC_DRAW);
+        coordinateBuffer.itemSize = 7; // columns
+        coordinateBuffer.numItems = 22; // rows
+    /* END COORDINATE BUFFER SETUP */
+
+        triangleVertexPositionBuffer = gl.createBuffer();
+        //gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        //gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBuffer), gl.STATIC_DRAW);
+    }
+    
+    function clearVertexBuffer(){
+        vertexBuffer = [];
+    }
+    
+    function reloadVertexBuffer(){
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBuffer), gl.STATIC_DRAW);
+    }
+
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        mat4.ortho(pMatrix, -3, 3, -3, 3, -10, 10);
+        mat4.identity(mvMatrix);
+        mat4.multiply(mvMatrix, mvMatrix, rotationMatrix);
+        
+        /* DRAW NEW COORDINATES
+        
+        // NOTE:    gl.FLOAT size = 4 bytes
+        gl.bindBuffer(gl.ARRAY_BUFFER, coordinateBuffer);
+        // 28 = number of floats in each point in array    = xyzrgba
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 28, 0);
+        
+        // 12 = first 3 floats for xyz coordinates
+        gl.bindBuffer(gl.ARRAY_BUFFER, coordinateBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 28, 12);
+        gl.drawArrays(gl.LINES, 0, coordinateBuffer.numItems);
+    
+        /* END DRAW NEW COORDINATES */
+        // NOTE:    gl.FLOAT size = 4 bytes
+        
+        lightDirection[x] = 1.0;
+        lightDirection[y] = 1.0;
+        lightDirection[z] = 1.0;
+        vec3.normalize(lightDirection, lightDirection);
+        gl.uniform3fv(shaderProgram.lightDirectionUniform, lightDirection);
+        
+        setMatrixUniforms();
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, gl.FALSE, 40, 0);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 3, gl.FLOAT, gl.FALSE, 40, 12);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, gl.FALSE, 40, 24);
+
+        setMatrixUniforms();
+        gl.drawArrays(gl.TRIANGLES, 0, vertexBuffer.length/10); // 10 vertices for each point in triangle
+    }
+
+    function webGLStart() {
+        var canvas = document.getElementById("canvas");
+        error_console = document.getElementById("console");
+
+        initGL(canvas);
+        initShaders();
+        //generateModels();
+        initBuffers();
+
+        gl.clearColor(0.25, 0.25, 0.25, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        canvas.onmousedown = handleMouseDown;
+        document.onmouseup = handleMouseUp;
+        document.onmousemove = handleMouseMove;
+        document.onkeydown = handleKeyDown;
+        appendLog("Initalized WebGL Context.");
+    }
+    
+    function appendLog(text){
+    var error_console = document.getElementById("console");
+    var message = Date.now() + "&nbsp;";
+    if(Object.prototype.toString.call(text) == "[object Float32Array]"){
+        if(text.length == 16){
+            message += "<table>";
+            for(var i=0 ; i < 3; i++){
+                message += "<tr>";
+                for(var j=0 ; j < 3; j++) {
+                    message += "<td>" + text[i+j].toFixed(3) + "</td>"
+                }
+                message += "</tr>";
+            }
+            message += "</table>"
+        }
+    } else {
+        message += text + "<br>";
+    }
+    error_console.innerHTML += message;
+    error_console.scrollTop = error_console.scrollHeight;
+    }
+    
+    function textParseStatus(parse){
+        var border_div = document.getElementById("code");
+        if(parse){
+            border_div.style.borderColor = "#fff";
+        } else {
+            border_div.style.borderColor = "#d00";
+        }
+    }
+    
+    function processText(){
+        textParseStatus(true);
+        clearVertexBuffer();
+        var val = document.getElementById("text").value;
+        const regexpSize = /tri\s([0-9])\s([0-9])\s([0-9])/;
+        var lines = document.getElementById('text').value;
+        const lines_split = lines.split(/\r?\n/);
+        
+        for (i = 0; i < lines_split.length; i++){
+            var new_string = lines_split[i];
+            const match = new_string.match(regexpSize);
+            if(match){
+                var point_a = vec3.create();
+                    point_a[x] = match[1];
+                    point_a[y] = match[2];
+                    point_a[z] = match[3];
+                    
+                var point_b = vec3.create();
+                    point_b[x] = 0;
+                    point_b[y] = 0;
+                    point_b[z] = 0;                    
+
+                var point_c = vec3.create();
+                    point_c[x] = 1;
+                    point_c[y] = 1;
+                    point_c[z] = 1;                        
+            
+                var color_a = vec4.create();
+                    color_a[r] = 1;
+                    color_a[g] = 0;
+                    color_a[b] = 0;
+                    color_a[a] = 1;
+                
+                loadTriangle(point_a, color_a, point_b, color_a, point_c, color_a)
+            } else {
+                textParseStatus(false);
+            }
+        }
+        reloadVertexBuffer();
+        drawScene();
+    }
+    
+</script>
+<style type="text/css">
+    body {
+        color: #ccc;
+    }
+    #console {
+       border: 1px solid #000;
+       height: 200px;
+       overflow-y: scroll;
+    }
+    table, th, td {
+        border: 1px solid white;
+        border-collapse: collapse;
+    }
+    #code {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        border: 1px solid #fff;
+    }
+    textarea {
+        background-color: #000;
+        color: #aaa;
+        border: none;
+        outline: none;
+    }
+</style>
+</head>
+<body onload="webGLStart();" style="background-color: #000;">
+    <canvas id="canvas" style="border: none;" width="450" height="450"></canvas>
+    <div id="console" ></div>
+    <div id="code"><textarea onkeyup="processText()" cols="60" rows="35" id="text"></textarea></div>
+    <button onClick="processText()">Compile</button>
+</body>
+</html>
